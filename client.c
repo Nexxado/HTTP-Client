@@ -117,6 +117,7 @@ char** parseCMD(char* input) {
                 return NULL;
         }
 
+        //Number of expected arguments (according to flags found)
         int num_of_tokens = NUM_OF_CMD_ARGS + num_of_flags;
         printf("num of tokens = %d\n", num_of_tokens); //DEBUG
 
@@ -165,6 +166,8 @@ char** parseCMD(char* input) {
                 return NULL;
         }
 
+        //TODO verify URL 
+
         return cmdTokens;
 }
 
@@ -201,20 +204,21 @@ int checkFlags(char* input) {
         return num_of_flags;
 }
 
+/*********************************/
+/*********************************/
+
 int checkTimeIntervalFormat(char* input, char* flag_ptr) {
 
         char interval_string[8];
         strncpy(interval_string, flag_ptr + 3, 8);
         printf("interval string = \"%s\"\n", interval_string); //DEBUG
 
-        int t = sscanf(interval_string, "%d%d:%d%d:%d%d"); //TODO fix this
-        // t = strcmp("kaki", "kaki");
-        printf("t = %d\n", t); //DEBUG
-
-
-
-
-        return 0;
+        //TODO find way to verify format using return value without assigning it to variables
+        int days, hours, mins;
+        int assigned = sscanf(interval_string, "%2d:%2d:%2d", &days, &hours, &mins);
+        printf("assigned = %d\n", assigned); //DEBUG
+        printf("days = \"%d\"\thours = \"%d\"\t mins = \"%d\"\n", days, hours, mins); //DEBUG
+        return assigned == 3 ? 0 : -1;
 }
 
 /******************************************************************************/
