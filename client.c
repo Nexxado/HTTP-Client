@@ -12,7 +12,7 @@
 #define HEADERS_FLAG "-h"
 #define DELAY_FLAG "-d"
 #define TIME_INTERVAL_FORMAT "%2d:%2d:%2d"
-// #define URL_FORMAT //TODO implement URL Format
+#define URL_FORMAT "%4s://%s"//format = Protocol://Host[:port]/Filepath
 #define NUM_OF_CMD_ARGS 2 //not including flags & options
 #define DEFAULT_PORT 80
 
@@ -21,12 +21,14 @@ static int sDelayIndex = -1;
 static int sHeadersFlag = FALSE;
 static int sHeadersIndex = -1;
 static int sURLIndex = -1;
+static int* sTimeInterval = NULL;
 
 //Method Declarations
 int parseCMD(int, char**);
 int checkFlags(int, char**);
-int* checkTimeIntervalFormat(char*);
+int* getTimeInterval(char*);
 int verifyURL(char*);
+int verifyPort(char*);
 
 //DEBUG Methods
 
@@ -34,6 +36,8 @@ int verifyURL(char*);
 /******************************************************************************/
 
 int main(int argc, char* argv[]) {
+
+        printf("\n********************\n**** Main START ****\n********************\n");
 
         if(argc < 2) {
                 printf(PRINT_WRONG_CMD_USAGE);
@@ -46,15 +50,21 @@ int main(int argc, char* argv[]) {
 
         //TODO Implement executeCMD();
 
+        printf("\n********************\n***** Main END *****\n********************\n");
         return 0;
 }
+
+
+/******************************************************************************/
+/*************************** CMD Execution Methods ****************************/
+/******************************************************************************/
 
 
 /******************************************************************************/
 /************************** Input Validation Methods **************************/
 /******************************************************************************/
 
-//divides user input into tokens
+//Parse & validate passed arguments
 int parseCMD(int argc, char** argv) {
 
         if(argv == NULL) {
@@ -74,12 +84,11 @@ int parseCMD(int argc, char** argv) {
                 return -1;
         }
 
-        int* interval = NULL;
         if(sDelayFlag) {
 
-                interval = checkTimeIntervalFormat(argv[sDelayIndex + 1]);
+                sTimeInterval = getTimeInterval(argv[sDelayIndex + 1]);
 
-                if(interval == NULL) {
+                if(sTimeInterval == NULL) {
                         printf("interval == NULL\n"); //DEBUG
                         printf(PRINT_WRONG_CMD_USAGE);
                         return -1;
@@ -89,21 +98,20 @@ int parseCMD(int argc, char** argv) {
 
         if(verifyURL(argv[sURLIndex])) {
                 printf(PRINT_WRONG_INPUT);
-                free(interval);
+                free(sTimeInterval);
                 return -1;
         }
 
-        if(interval != NULL) {
-                free(interval);
-        }
+        // if(interval != NULL) {
+        //         free(interval);
+        // }
         return 0;
 }
 
 /*********************************/
 /*********************************/
 
-//check flags and return how many addiotional arguments are expected
-// param input - the command the user submitted
+//check arguments for flags and return how many additional arguments are expected
 int checkFlags(int argc, char** argv) {
 
         int num_of_flags = 0;
@@ -138,7 +146,9 @@ int checkFlags(int argc, char** argv) {
 /*********************************/
 /*********************************/
 
-int* checkTimeIntervalFormat(char* interval_string) {
+//get and validate time interval arguement
+//used only if the Delay flag is found
+int* getTimeInterval(char* interval_string) {
 
         if(interval_string == NULL)
                 return NULL;
@@ -148,6 +158,7 @@ int* checkTimeIntervalFormat(char* interval_string) {
         printf("assigned = %d\n", assigned); //DEBUG
         printf("days = \"%d\"\thours = \"%d\"\t mins = \"%d\"\n", days, hours, mins); //DEBUG
 
+        //if interval_string matches format return int array with days, hours, mins.
         if(assigned == 3) {
 
                 int* time_interval = (int*)calloc(3, sizeof(int));
@@ -168,9 +179,60 @@ int* checkTimeIntervalFormat(char* interval_string) {
 /*********************************/
 /*********************************/
 
+//Verify that passed URL argument matches format
 int verifyURL(char* url) {
 
+        char protocol[4];
+        char host_path[strlen(url)-4];
+        int port = DEFAULT_PORT;
+        int assigned = sscanf(url, URL_FORMAT, protocol, host_path);
+
+        printf("Url = %s\nURL Format - assigned = %d\n", url, assigned); //DEBUG
+        printf("protocol = \"%s\"\thost_path = \"%s\"\n", protocol, host_path); //DEBUG
+        if(assigned != 2 || strcmp(protocol, "http"))
+                return -1;
+
+        //check & verify port
+        char* port_ptr;
+        if((port_ptr = strchr(host_path, ':')) != NULL) {
+
+                port = verifyPort(port_ptr);
+                if(port == -1) {
+                        return -1;
+                }
+        }
+
+        printf("port = %d\n", port); //DEBUG
+
         return 0;
+}
+
+/*********************************/
+/*********************************/
+
+//if port was found, verify its format
+int verifyPort(char* port_ptr) {
+
+        int i;
+        for(i = 0; port_ptr[i] != '/' && port_ptr[i] != '\0'; i++); //find end of port
+
+        int port_length = i-1;
+        //port is a maximum of 4 digits
+        if(port_length > 4)
+                return -1;
+
+
+        char port_string[port_length];
+        strncpy(port_string, port_ptr + 1, port_length);
+        printf("i-1 = %d\tport_string = %s\n", i-1, port_string); //DEBUG
+
+        //check port_string containts only digits
+        int assigned = strspn(port_string, "0123456789");
+        printf("span = %d\n", assigned); //DEBUG
+        if(assigned != port_length)
+                return -1;
+
+        return atoi(port_string);
 }
 
 /******************************************************************************/
