@@ -37,7 +37,7 @@ int verifyPort(char*);
 
 int main(int argc, char* argv[]) {
 
-        printf("\n********************\n**** Main START ****\n********************\n");
+        printf("\n********************\n**** Main START ****\n********************\n"); //DEBUG
 
         if(argc < 2) {
                 printf(PRINT_WRONG_CMD_USAGE);
@@ -50,7 +50,9 @@ int main(int argc, char* argv[]) {
 
         //TODO Implement executeCMD();
 
-        printf("\n********************\n***** Main END *****\n********************\n");
+
+        free(sTimeInterval);
+        printf("\n********************\n***** Main END *****\n********************\n"); //DEBUG
         return 0;
 }
 
@@ -102,9 +104,6 @@ int parseCMD(int argc, char** argv) {
                 return -1;
         }
 
-        // if(interval != NULL) {
-        //         free(interval);
-        // }
         return 0;
 }
 
@@ -163,7 +162,8 @@ int* getTimeInterval(char* interval_string) {
 
                 int* time_interval = (int*)calloc(3, sizeof(int));
                 if(time_interval == NULL) {
-                        return NULL;
+                        perror("calloc");
+                        exit(-1);
                 }
 
                 time_interval[0] = days;
@@ -222,7 +222,12 @@ int verifyPort(char* port_ptr) {
                 return -1;
 
 
-        char port_string[port_length];
+        char* port_string = (char*)calloc(port_length + 1, sizeof(char));
+        if(port_string == NULL) {
+                perror("calloc");
+                exit(-1);
+        }
+
         strncpy(port_string, port_ptr + 1, port_length);
         printf("i-1 = %d\tport_string = %s\n", i-1, port_string); //DEBUG
 
@@ -232,7 +237,9 @@ int verifyPort(char* port_ptr) {
         if(assigned != port_length)
                 return -1;
 
-        return atoi(port_string);
+        int port = atoi(port_string);
+        free(port_string);
+        return port;
 }
 
 /******************************************************************************/
