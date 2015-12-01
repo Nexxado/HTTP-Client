@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <netinet/in.h>
+#include <netdb.h>
 
 #define TRUE 1
 #define FALSE 0
@@ -22,13 +23,18 @@ static int sHeadersFlag = FALSE;
 static int sHeadersIndex = -1;
 static int sURLIndex = -1;
 static int* sTimeInterval = NULL;
+static char* sHost = NULL;
+static char* sFilePath = NULL;
+static int sPort = DEFAULT_PORT;
 
 //Method Declarations
-int parseCMD(int, char**);
+int parseArguments(int, char**);
 int checkFlags(int, char**);
 int* getTimeInterval(char*);
 int verifyURL(char*);
 int verifyPort(char*);
+
+int executeCMD(int, char**);
 
 //DEBUG Methods
 
@@ -44,14 +50,17 @@ int main(int argc, char* argv[]) {
                 exit(-1);
         }
 
-        if(parseCMD(argc, argv)) {
+        if(parseArguments(argc, argv)) {
                 exit(-1);
         }
 
         //TODO Implement executeCMD();
+        executeCMD(argc, argv);
 
 
         free(sTimeInterval);
+        free(sHost);
+        free(sFilePath);
         printf("\n********************\n***** Main END *****\n********************\n"); //DEBUG
         return 0;
 }
@@ -62,12 +71,21 @@ int main(int argc, char* argv[]) {
 /******************************************************************************/
 
 
+int executeCMD(int agc, char** argv) {
+
+        // struct sockaddr_in srv;
+        // srv.sin_addr.sin_addr = inet_addr()
+
+        return 0;
+}
+
+
 /******************************************************************************/
 /************************** Input Validation Methods **************************/
 /******************************************************************************/
 
 //Parse & validate passed arguments
-int parseCMD(int argc, char** argv) {
+int parseArguments(int argc, char** argv) {
 
         if(argv == NULL) {
                 printf("argv = NULL\n"); //DEBUG
@@ -134,7 +152,7 @@ int checkFlags(int argc, char** argv) {
         }
 
         for(i = 1; i < argc; i++) {
-                if(i != sDelayIndex && i != sDelayIndex+1 && i != sHeadersIndex)
+                if(i != sDelayIndex && i != sDelayIndex + 1 && i != sHeadersIndex)
                         sURLIndex = i;
         }
         printf("URL Index = %d\n", sURLIndex); //DEBUG
@@ -184,7 +202,6 @@ int verifyURL(char* url) {
 
         char protocol[4];
         char host_path[strlen(url)-4];
-        int port = DEFAULT_PORT;
         int assigned = sscanf(url, URL_FORMAT, protocol, host_path);
 
         printf("Url = %s\nURL Format - assigned = %d\n", url, assigned); //DEBUG
@@ -194,15 +211,38 @@ int verifyURL(char* url) {
 
         //check & verify port
         char* port_ptr;
+        int hostLength = 0;
         if((port_ptr = strchr(host_path, ':')) != NULL) {
 
-                port = verifyPort(port_ptr);
-                if(port == -1) {
+                sPort = verifyPort(port_ptr);
+                if(sPort == -1)
                         return -1;
-                }
+
+
+                printf("port_ptr = %s, its length = %d\n", port_ptr, (int)strlen(port_ptr)); //DEBUG
+                hostLength = strlen(host_path) - strlen(port_ptr);
+
+        } else {
+                hostLength = strlen(host_path) - strlen(strchr(host_path, '/'));
         }
 
-        printf("port = %d\n", port); //DEBUG
+        //get Host address
+        sHost = (char*)calloc(hostLength + 1, sizeof(char));
+        if(sHost == NULL)
+                return -1;
+
+        strncpy(sHost, host_path, hostLength);
+        printf("sHost = %s, length = %d\n", sHost, (int)strlen(sHost)); //DEBUG
+
+        //get file Path
+        char* filePath_ptr = strchr(host_path, '/') + 1;
+        int filePathLength = strlen(filePath_ptr);
+        sFilePath = (char*)calloc(filePathLength + 1, sizeof(char));
+        strncpy(sFilePath, filePath_ptr, filePathLength);
+        printf("sFilePath = %s, length = %d\n", sFilePath, (int)strlen(sFilePath)); //DEBUG
+
+
+        printf("port = %d\n", sPort); //DEBUG
 
         return 0;
 }
