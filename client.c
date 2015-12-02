@@ -39,7 +39,6 @@ int checkFlags(int, char**);
 int* getTimeInterval(char*);
 int verifyURL(char*);
 int verifyPort(char*);
-
 int executeCMD(int, char**);
 
 //DEBUG Methods
@@ -81,7 +80,7 @@ int main(int argc, char* argv[]) {
 /******************************************************************************/
 
 
-int executeCMD(int agc, char** argv) {
+int executeCMD(int argc, char** argv) {
         printf("\n\n\n"); //DEBUG
         int sockfd;
         if((sockfd = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
@@ -212,7 +211,7 @@ int parseArguments(int argc, char** argv) {
 
                 if(sTimeInterval == NULL) {
                         printf("interval == NULL\n"); //DEBUG
-                        printf(PRINT_WRONG_CMD_USAGE);
+                        printf(PRINT_WRONG_INPUT);
                         return -1;
                 }
 
