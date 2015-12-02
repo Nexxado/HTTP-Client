@@ -5,7 +5,6 @@
 #include <netdb.h>
 #include <unistd.h> // for close
 #include <time.h>
-#include <arpa/inet.h> //DEBUG
 
 #define TRUE 1
 #define FALSE 0
@@ -46,14 +45,11 @@ char* constructRequest(char*);
 int getResponse(char*, int, int*);
 void destroy();
 
-//DEBUG Methods
 
 /******************************************************************************/
 /******************************************************************************/
 
 int main(int argc, char* argv[]) {
-
-        printf("\n********************\n**** Main START ****\n********************\n"); //DEBUG
 
         if(argc < 2) {
                 printf(PRINT_WRONG_CMD_USAGE);
@@ -64,9 +60,7 @@ int main(int argc, char* argv[]) {
 
         executeCMD(argv[sURLIndex]);
 
-
         destroy();
-        printf("\n********************\n***** Main END *****\n********************\n"); //DEBUG
         return 0;
 }
 
@@ -80,13 +74,10 @@ void executeCMD(char* url) {
         int sockfd = 0;
         establishConnection(&sockfd);
 
-        printf("sockfd = %d\n", sockfd); //DEBUG
-        printf("connection established\n"); //DEBUG
-
         char* request = constructRequest(url);
 
         //Sending Request
-        printf("HTTP request =\n%s\nLEN = %d\n", request, (int)strlen(request)); //THIS IS NOT(!!!) DEBUG
+        printf("HTTP request =\n%s\nLEN = %d\n", request, (int)strlen(request));
         if(write(sockfd, request, strlen(request)) < 0) {
                 perror("write");
                 exit(-1);
@@ -103,10 +94,9 @@ void executeCMD(char* url) {
 
         printf("\n%s\n", response);
 
-        printf("\n Total received response bytes: %d\n", read); //THIS IS NOT(!!!) DEBUG
+        printf("\n Total received response bytes: %d\n", read);
 
         free(response);
-        // free(request);
         close(sockfd);
 }
 
@@ -117,9 +107,6 @@ void executeCMD(char* url) {
 //Initialize socket structs and establish connection to server.
 void establishConnection(int* sockfd) {
 
-        printf("\n\n\n"); //DEBUG
-
-        printf("sockfd = %d\n", (*sockfd)); //DEBUG
         if(((*sockfd) = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
                 perror("socket");
                 exit(-1);
@@ -128,6 +115,7 @@ void establishConnection(int* sockfd) {
         memset(&server_addr, 0, sizeof(server_addr));
 
         struct hostent *hp;
+
         hp = gethostbyname(sHost);
         if(hp == NULL) {
                 herror("gethostbyname");
@@ -135,21 +123,14 @@ void establishConnection(int* sockfd) {
                 exit(-1);
         }
 
-        printf("hostnent IP address = %s\n", inet_ntoa(*(struct in_addr*)hp->h_addr_list[0])); //DEBUG
-        printf("**********HP - name = %s\taddressType = %d\n**********length = %d\n", hp->h_name, hp->h_addrtype, hp->h_length); //DEBUG
-
         server_addr.sin_family = AF_INET;
         server_addr.sin_addr.s_addr = ((struct in_addr*) hp->h_addr)->s_addr;
-        printf("server_addr IP address = %s\n", inet_ntoa(server_addr.sin_addr)); //DEBUG
         server_addr.sin_port = htons(sPort);
-        printf("address = %u, port = %u\n", server_addr.sin_addr.s_addr, server_addr.sin_port); //DEBUG
 
         if(connect((*sockfd), (struct sockaddr*) &server_addr, sizeof(server_addr)) < 0) {
                 perror("connect");
                 exit(-1);
         }
-
-        printf("sockfd = %d\n", (*sockfd)); //DEBUG
 }
 
 /*********************************/
@@ -186,8 +167,6 @@ char* constructRequest(char* url) {
                 strcat(modified_since, "\r\n");
         }
 
-        printf("modified_since = %s\n", modified_since); //DEBUG
-
         sprintf(request, "%s /%s HTTP/1.0\r\nHost: %s\r\n%s\r\n",
                 METHOD,
                 sFilePath != NULL ? sFilePath : "",
@@ -211,18 +190,16 @@ int getResponse(char* response, int response_length, int* sockfd) {
 
         //Reading server response
         while ((nBytes = read((*sockfd), buffer, sizeof(buffer))) > 0) {
-                printf("Im Reading...\n"); //DEBUG
+
                 if(nBytes < 0) {
                         perror("read");
                         exit(-1);
                 }
                 //count total bytes
                 bytes_read += nBytes;
-                printf("nBytes(bytes read now) = %d, bytes_read(total) = %d\n", nBytes, bytes_read); //DEBUG
-                printf("free space = %d\n", response_length - bytes_read); //DEBUG
+
                 if(nBytes >= (response_length - bytes_read)) {
 
-                        printf("Reallocating Reponse - inc size to %d\n", response_length * 2); //DEBUG
                         response = realloc(response, (response_length *= 2));
                         if(response == NULL) {
                                 perror("realloc");
@@ -231,10 +208,7 @@ int getResponse(char* response, int response_length, int* sockfd) {
 
                 }
                 strncat(response, buffer, nBytes);
-                // strcat(response, buffer);
-
         }
-
         return bytes_read;
 }
 
@@ -247,7 +221,6 @@ int getResponse(char* response, int response_length, int* sockfd) {
 void parseArguments(int argc, char** argv) {
 
         if(argv == NULL) {
-                printf("argv = NULL\n"); //DEBUG
                 printf(PRINT_WRONG_CMD_USAGE);
                 exit(-1);
         }
@@ -256,7 +229,7 @@ void parseArguments(int argc, char** argv) {
 
         //Number of expected arguments (according to flags found)
         int num_of_tokens = NUM_OF_CMD_ARGS + num_of_flags;
-        printf("num of tokens = %d, argc = %d\n", num_of_tokens, argc); //DEBUG
+
         if(num_of_tokens != argc) {
                 printf(PRINT_WRONG_CMD_USAGE);
                 exit(-1);
@@ -266,7 +239,6 @@ void parseArguments(int argc, char** argv) {
 
                 sTimeInterval = getTimeInterval(argv[sDelayIndex + 1]);
                 if(sTimeInterval == NULL) {
-                        printf("interval == NULL\n"); //DEBUG
                         printf(PRINT_WRONG_INPUT);
                         exit(-1);
                 }
@@ -294,13 +266,11 @@ int checkFlags(int argc, char** argv) {
                 if(!strcmp(argv[i], HEADERS_FLAG)) {
                         sHeaderFlag = TRUE;
                         sHeadersIndex = i;
-                        printf("Header Flag Found, index = %d\n", sHeadersIndex); //DEBUG
                         num_of_flags += 1;
 
                 } else if(!strcmp(argv[i], DELAY_FLAG)) {
                         sDelayFlag = TRUE;
                         sDelayIndex = i;
-                        printf("Delay Flag Found, index = %d\n", sDelayIndex); //DEBUG
                         num_of_flags += 2;
 
                 }
@@ -310,7 +280,6 @@ int checkFlags(int argc, char** argv) {
                 if(i != sDelayIndex && i != sDelayIndex + 1 && i != sHeadersIndex)
                         sURLIndex = i;
         }
-        printf("URL Index = %d\n", sURLIndex); //DEBUG
 
         return num_of_flags;
 }
@@ -328,8 +297,6 @@ int* getTimeInterval(char* interval_string) {
 
         int days, hours, mins;
         int assigned = sscanf(interval_string, TIME_INTERVAL_FORMAT, &days, &hours, &mins);
-        printf("assigned = %d\n", assigned); //DEBUG
-        printf("days = \"%d\"\thours = \"%d\"\t mins = \"%d\"\n", days, hours, mins); //DEBUG
 
         //if interval_string matches format return int array with days, hours, mins.
         if(assigned == 3) {
@@ -364,8 +331,6 @@ int verifyURL(char* url) {
 
         char* path_ptr = strchr(host_path, '/');
 
-        printf("Url = %s, length = %d\nURL Format - assigned = %d\n", url, (int)strlen(url), assigned); //DEBUG
-        printf("protocol = \"%s\"\thost_path = \"%s\"\n", protocol, host_path); //DEBUG
         //check & verify URL format & correct protocol
         if(assigned != 2 || strcmp(protocol, "http"))
                 return -1;
@@ -379,7 +344,6 @@ int verifyURL(char* url) {
                 if(sPort == -1)
                         return -1;
 
-                printf("port_ptr = %s, its length = %d\n", port_ptr, (int)strlen(port_ptr)); //DEBUG
                 hostLength = strlen(host_path) - strlen(port_ptr);
 
         } else {
@@ -399,7 +363,6 @@ int verifyURL(char* url) {
                 return -1;
 
         strncpy(sHost, host_path, hostLength);
-        printf("sHost = %s, length = %d\n", sHost, (int)strlen(sHost)); //DEBUG
 
         //get file Path
         if(path_ptr != NULL) {
@@ -407,11 +370,8 @@ int verifyURL(char* url) {
                 int filePathLength = strlen(path_ptr + 1);
                 sFilePath = (char*)calloc(filePathLength + 1, sizeof(char));
                 strncpy(sFilePath, path_ptr + 1, filePathLength);
-                printf("sFilePath = %s, length = %d\n", sFilePath, (int)strlen(sFilePath)); //DEBUG
 
         }
-
-        printf("port = %d\n", sPort); //DEBUG
 
         return 0;
 }
@@ -439,11 +399,10 @@ int verifyPort(char* port_ptr) {
         }
 
         strncpy(port_string, port_ptr + 1, port_length);
-        printf("i-1 = %d\tport_string = %s\n", i-1, port_string); //DEBUG
 
         //check port_string containts only digits
         int assigned = strspn(port_string, "0123456789");
-        printf("span = %d\n", assigned); //DEBUG
+
         if(assigned != port_length)
                 return -1;
 
@@ -464,6 +423,6 @@ void destroy() {
 
 }
 
-/****************************/
-/****** DEBUG Methods *******/
-/****************************/
+/******************************************************************************/
+/******************************************************************************/
+/******************************************************************************/
