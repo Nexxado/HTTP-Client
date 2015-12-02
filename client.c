@@ -3,6 +3,8 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <unistd.h> // for close
+#include <arpa/inet.h> //DEBUG
 
 #define TRUE 1
 #define FALSE 0
@@ -13,9 +15,13 @@
 #define HEADERS_FLAG "-h"
 #define DELAY_FLAG "-d"
 #define TIME_INTERVAL_FORMAT "%2d:%2d:%2d"
-#define URL_FORMAT "%4s://%s"//format = Protocol://Host[:port]/Filepath
+#define URL_FORMAT "%4s://%s" //format = Protocol://Host[:port]/Filepath
 #define NUM_OF_CMD_ARGS 2 //not including flags & options
 #define DEFAULT_PORT 80
+
+#define BUFFER_SIZE 512
+#define REQUEST_SIZE 1024
+#define RESPONSE_SIZE 1024
 
 static int sDelayFlag = FALSE;
 static int sDelayIndex = -1;
@@ -38,6 +44,10 @@ int executeCMD(int, char**);
 
 //DEBUG Methods
 
+//TODO add support for HTTPS urls
+//TODO fix issue when url contains ampersand
+//TODO add If-Modified-Since header
+
 /******************************************************************************/
 /******************************************************************************/
 
@@ -54,8 +64,8 @@ int main(int argc, char* argv[]) {
                 exit(-1);
         }
 
-        //TODO Implement executeCMD();
-        executeCMD(argc, argv);
+        int result = executeCMD(argc, argv); //DEBUG - remove assignment
+        printf("executeCMD result = %d\n", result); //DEBIG
 
 
         free(sTimeInterval);
@@ -72,10 +82,102 @@ int main(int argc, char* argv[]) {
 
 
 int executeCMD(int agc, char** argv) {
+        printf("\n\n\n"); //DEBUG
+        int sockfd;
+        if((sockfd = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+                perror("socket");
+                exit(-1);
+        }
+        struct sockaddr_in server_addr;
+        memset(&server_addr, 0, sizeof(server_addr));
 
-        // struct sockaddr_in srv;
-        // srv.sin_addr.sin_addr = inet_addr()
+        struct hostent *hp;
+        hp = gethostbyname(sHost);
+        if(hp == NULL)
+                return -1;
 
+        printf("hostnent IP address = %s\n", inet_ntoa(*(struct in_addr*)hp->h_addr_list[0])); //DEBUG
+        printf("**********HP - name = %s\taddressType = %d\n**********length = %d\n", hp->h_name, hp->h_addrtype, hp->h_length); //DEBUG
+
+        server_addr.sin_family = AF_INET;
+        server_addr.sin_addr.s_addr = ((struct in_addr*) hp->h_addr)->s_addr;
+        printf("server_addr IP address = %s\n", inet_ntoa(server_addr.sin_addr)); //DEBUG
+        server_addr.sin_port = htons(sPort);
+        printf("address = %u, port = %u\n", server_addr.sin_addr.s_addr, server_addr.sin_port); //DEBUG
+
+        if(connect(sockfd, (struct sockaddr*) &server_addr, sizeof(server_addr)) < 0) {
+                perror("connect");
+                exit(-1);
+        }
+
+        int nBytes;
+        char buffer[BUFFER_SIZE];
+        memset(&buffer, 0, sizeof(buffer));
+        char request[REQUEST_SIZE];
+        memset(request, 0, sizeof(request));
+
+        int response_length = RESPONSE_SIZE;
+        int bytes_read = 0;
+        char* response = (char*)calloc(response_length, sizeof(char));
+        if(response == NULL) {
+                perror("calloc");
+                exit(-1);
+        }
+
+
+
+        //Constructing HTTP Request
+        // char* request = (char*)calloc(request_length, sizeof(char));
+        if(sHeadersFlag)
+                strcat(request, "HEAD ");
+        else
+                strcat(request, "GET ");
+
+        strcat(request, argv[sURLIndex]);
+        strcat(request, " HTTP/1.0\r\n\r\n");
+
+        // printf("request = \n%s, length = %d\n", request, (int)strlen(request)); //DEBUG
+
+
+        //Sending Request
+        printf("HTTP request =\n%s\nLEN = %d\n", request, (int)strlen(request)); //THIS IS NOT(!!!) DEBUG
+        if( write(sockfd , request , strlen(request)) < 0) {
+                perror("write");
+                exit(-1);
+        }
+
+
+        //Reading server response
+        while ((nBytes = read(sockfd, buffer, sizeof(buffer))) > 0) {
+                printf("Im Reading...\n"); //DEBUG
+                if(nBytes < 0) {
+                        perror("read");
+                        exit(-1);
+                }
+                bytes_read += nBytes;
+                printf("nBytes(bytes read now) = %d, bytes_read(total) = %d\n", nBytes, bytes_read); //DEBUG
+                // printf("buffer = %s\n", buffer); //DEBUG
+
+                // printf("buffer = %s\n", buffer); //DEBUG
+                printf("free space = %d\n", response_length - bytes_read); //DEBUG
+                if(nBytes >= (response_length - bytes_read)) {
+                        printf("Reallocating Reponse - inc size to %d\n", response_length * 2); //DEBUG
+                        response = realloc(response, (response_length *= 2));
+                        if(response == NULL) {
+                                perror("realloc");
+                                exit(-1);
+                        }
+
+                }
+                strncat(response, buffer, nBytes);
+                // strcat(response, buffer);
+
+        }
+
+
+        printf("\n********************\n****** RESPONSE ******\n********************\n\n%s\n\n********************\n\n", response); //DEBUG
+        free(response);
+        close(sockfd);
         return 0;
 }
 
@@ -202,10 +304,14 @@ int verifyURL(char* url) {
 
         char protocol[4];
         char host_path[strlen(url)-4];
+        //seperate protocol & host+path
         int assigned = sscanf(url, URL_FORMAT, protocol, host_path);
 
-        printf("Url = %s\nURL Format - assigned = %d\n", url, assigned); //DEBUG
+        char* path_ptr = strchr(host_path, '/');
+
+        printf("Url = %s, length = %d\nURL Format - assigned = %d\n", url, (int)strlen(url), assigned); //DEBUG
         printf("protocol = \"%s\"\thost_path = \"%s\"\n", protocol, host_path); //DEBUG
+        //check & verify URL format & correct protocol
         if(assigned != 2 || strcmp(protocol, "http"))
                 return -1;
 
@@ -218,12 +324,18 @@ int verifyURL(char* url) {
                 if(sPort == -1)
                         return -1;
 
-
                 printf("port_ptr = %s, its length = %d\n", port_ptr, (int)strlen(port_ptr)); //DEBUG
                 hostLength = strlen(host_path) - strlen(port_ptr);
 
         } else {
-                hostLength = strlen(host_path) - strlen(strchr(host_path, '/'));
+
+                if(path_ptr == NULL) {
+                        hostLength = strlen(host_path);
+
+                } else {
+                        hostLength = strlen(host_path) - strlen(path_ptr);
+                }
+
         }
 
         //get Host address
@@ -235,12 +347,14 @@ int verifyURL(char* url) {
         printf("sHost = %s, length = %d\n", sHost, (int)strlen(sHost)); //DEBUG
 
         //get file Path
-        char* filePath_ptr = strchr(host_path, '/') + 1;
-        int filePathLength = strlen(filePath_ptr);
-        sFilePath = (char*)calloc(filePathLength + 1, sizeof(char));
-        strncpy(sFilePath, filePath_ptr, filePathLength);
-        printf("sFilePath = %s, length = %d\n", sFilePath, (int)strlen(sFilePath)); //DEBUG
+        if(path_ptr != NULL) {
 
+                int filePathLength = strlen(path_ptr + 1);
+                sFilePath = (char*)calloc(filePathLength + 1, sizeof(char));
+                strncpy(sFilePath, path_ptr + 1, filePathLength);
+                printf("sFilePath = %s, length = %d\n", sFilePath, (int)strlen(sFilePath)); //DEBUG
+
+        }
 
         printf("port = %d\n", sPort); //DEBUG
 
@@ -254,7 +368,7 @@ int verifyURL(char* url) {
 int verifyPort(char* port_ptr) {
 
         int i;
-        for(i = 0; port_ptr[i] != '/' && port_ptr[i] != '\0'; i++); //find end of port
+        for(i = 0; port_ptr[i] != '/' && port_ptr[i] != '\0'; i++) ;  //find end of port
 
         int port_length = i-1;
         //port is a maximum of 4 digits
