@@ -3,19 +3,19 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include <unistd.h> // for close
+#include <unistd.h> // for closing socket
 #include <time.h>
 
 #define TRUE 1
 #define FALSE 0
 
-#define RFC1123FMT "%a, %d %b %Y %H:%M:%S GMT"
+#define RFC1123FMT "%a, %d %b %Y %H:%M:%S GMT" //If-Modified-Since format
 #define PRINT_WRONG_CMD_USAGE "Usage: client [-h] [-d <timeinterval>] <URL>\n"
-#define PRINT_WRONG_INPUT "wrong input\n"
+#define PRINT_WRONG_INPUT "Wrong input\n"
 #define HEADERS_FLAG "-h"
 #define DELAY_FLAG "-d"
 #define TIME_INTERVAL_FORMAT "%2d:%2d:%2d"
-#define URL_FORMAT "%4s://%s" //format = Protocol://Host[:port]/Filepath
+#define URL_FORMAT "%4s://%s" //format = Protocol://(Host[:port]/Filepath)
 #define NUM_OF_CMD_ARGS 2 //not including flags & options
 #define DEFAULT_PORT 80
 
@@ -23,6 +23,7 @@
 #define REQUEST_SIZE 1024
 #define RESPONSE_SIZE 1024
 
+//Static Variables
 static int sDelayFlag = FALSE;
 static int sDelayIndex = -1;
 static int sHeaderFlag = FALSE;
@@ -49,6 +50,7 @@ void destroy();
 
 /******************************************************************************/
 /******************************************************************************/
+/******************************************************************************/
 
 int main(int argc, char* argv[]) {
 
@@ -67,9 +69,48 @@ int main(int argc, char* argv[]) {
 
 
 /******************************************************************************/
-/*************************** CMD Execution Methods ****************************/
+/******************************* Main Methods *********************************/
 /******************************************************************************/
 
+//Parse & validate passed arguments
+void parseArguments(int argc, char** argv) {
+
+        if(argv == NULL) {
+                printf(PRINT_WRONG_CMD_USAGE);
+                exit(-1);
+        }
+
+        int num_of_flags = checkFlags(argc, argv);
+
+        //Number of expected arguments (according to flags found)
+        int num_of_tokens = NUM_OF_CMD_ARGS + num_of_flags;
+
+        if(num_of_tokens != argc) {
+                printf(PRINT_WRONG_CMD_USAGE);
+                exit(-1);
+        }
+
+        if(sDelayFlag) {
+
+                sTimeInterval = getTimeInterval(argv[sDelayIndex + 1]);
+                if(sTimeInterval == NULL) {
+                        printf(PRINT_WRONG_INPUT);
+                        exit(-1);
+                }
+        }
+
+        if(verifyURL(argv[sURLIndex])) {
+                printf(PRINT_WRONG_INPUT);
+                free(sTimeInterval);
+                exit(-1);
+        }
+}
+
+/*********************************/
+/*********************************/
+/*********************************/
+
+//Execute HTTP Request according to URL & arguments
 void executeCMD(char* url) {
 
         int sockfd = 0;
@@ -92,9 +133,9 @@ void executeCMD(char* url) {
         close(sockfd);
 }
 
-/*********************************/
-/*********************************/
-/*********************************/
+/******************************************************************************/
+/************************ executeCMD() Helper Methods *************************/
+/******************************************************************************/
 
 //Initialize socket structs and establish connection to server.
 void establishConnection(int* sockfd) {
@@ -172,15 +213,16 @@ char* constructRequest(char* url) {
 /*********************************/
 /*********************************/
 
+//Send constructed request to server
 void sendRequest(int* sockfd, char* request) {
 
-        int request_legnth = strlen(request);
+        int request_length = strlen(request);
         int bytes_written = 0;
         int nBytes;
 
-        printf("HTTP request =\n%s\nLEN = %d\n", request, request_legnth);
+        printf("HTTP request =\n%s\nLEN = %d\n", request, request_length);
 
-        while(bytes_written < request_legnth) {
+        while(bytes_written < request_length) {
 
                 if((nBytes = write((*sockfd), request, strlen(request))) < 0) {
                         perror("write");
@@ -234,46 +276,9 @@ int getResponse(char** response, int response_length, int* sockfd) {
 
 
 /******************************************************************************/
-/************************** Input Validation Methods **************************/
+/********************** parseArguments() Helper Methods ***********************/
 /******************************************************************************/
 
-//Parse & validate passed arguments
-void parseArguments(int argc, char** argv) {
-
-        if(argv == NULL) {
-                printf(PRINT_WRONG_CMD_USAGE);
-                exit(-1);
-        }
-
-        int num_of_flags = checkFlags(argc, argv);
-
-        //Number of expected arguments (according to flags found)
-        int num_of_tokens = NUM_OF_CMD_ARGS + num_of_flags;
-
-        if(num_of_tokens != argc) {
-                printf(PRINT_WRONG_CMD_USAGE);
-                exit(-1);
-        }
-
-        if(sDelayFlag) {
-
-                sTimeInterval = getTimeInterval(argv[sDelayIndex + 1]);
-                if(sTimeInterval == NULL) {
-                        printf(PRINT_WRONG_INPUT);
-                        exit(-1);
-                }
-        }
-
-        if(verifyURL(argv[sURLIndex])) {
-                printf(PRINT_WRONG_INPUT);
-                free(sTimeInterval);
-                exit(-1);
-        }
-}
-
-/*********************************/
-/*********************************/
-/*********************************/
 
 //check arguments for flags and return how many additional arguments are expected
 int checkFlags(int argc, char** argv) {
@@ -437,12 +442,9 @@ int verifyPort(char* port_ptr) {
 
 void destroy() {
 
-        if(sTimeInterval != NULL)
-                free(sTimeInterval);
-        if(sHost != NULL)
-                free(sHost);
-        if(sFilePath != NULL)
-                free(sFilePath);
+        free(sTimeInterval);
+        free(sHost);
+        free(sFilePath);
 
 }
 
