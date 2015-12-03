@@ -15,7 +15,7 @@
 #define PRINT_WRONG_INPUT "Wrong input\n"
 #define HEADERS_FLAG "-h"
 #define DELAY_FLAG "-d"
-#define TIME_INTERVAL_FORMAT "%2d:%2d:%2d"
+#define TIME_INTERVAL_FORMAT "%d:%d:%d"
 #define URL_FORMAT "%4s://%s" //format = Protocol://(Host[:port]/Filepath)
 #define NUM_OF_CMD_ARGS 2 //not including flags & options
 #define DEFAULT_PORT 80
@@ -271,7 +271,6 @@ int getResponse(char** response, int response_length, int* sockfd) {
                 }
                 strncat((*response), buffer, nBytes);
         }
-        printf("response length = %d\n", (int)strlen((*response))); //DEBUG
         return bytes_read;
 }
 
