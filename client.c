@@ -42,7 +42,8 @@ int verifyPort(char*);
 void executeCMD(char*);
 void establishConnection(int*);
 char* constructRequest(char*);
-int getResponse(char*, int, int*);
+void sendRequest(int*, char*);
+int getResponse(char**, int, int*);
 void destroy();
 
 
@@ -69,54 +70,22 @@ int main(int argc, char* argv[]) {
 /*************************** CMD Execution Methods ****************************/
 /******************************************************************************/
 
-void sendRequest(int* sockfd, char* request) {
-        printf("Sending Request\n"); //DEBUG
-        int request_legnth = strlen(request);
-        int bytes_written = 0;
-        int nBytes;
-        printf("HTTP request =\n%s\nLEN = %d\n", request, request_legnth);
-
-        while(bytes_written < request_legnth) {
-
-                if((nBytes = write((*sockfd), request, strlen(request))) < 0) {
-                        perror("write");
-                        exit(-1);
-                }
-
-                bytes_written += nBytes;
-                printf("nBytes = %d, bytes_written = %d\n", nBytes, bytes_written); //DEBUG
-        }
-
-        free(request);
-
-}
-
 void executeCMD(char* url) {
 
         int sockfd = 0;
         establishConnection(&sockfd);
 
-        char* request = constructRequest(url);
+        sendRequest(&sockfd, constructRequest(url));
 
-        sendRequest(&sockfd, request);
-        //Sending Request
-        // printf("HTTP request =\n%s\nLEN = %d\n", request, (int)strlen(request));
-        // if(write(sockfd, request, strlen(request)) < 0) {
-        //         perror("write");
-        //         exit(-1);
-        // }
-        // free(request);
-
-        char* response = (char*)calloc(RESPONSE_SIZE + 1, sizeof(char));
+        char* response = (char*)calloc(RESPONSE_SIZE, sizeof(char));
         if(response == NULL) {
                 perror("calloc");
                 exit(-1);
         }
 
-        int read = getResponse(response, RESPONSE_SIZE, &sockfd);
+        int read = getResponse(&response, RESPONSE_SIZE, &sockfd);
 
         printf("\n%s\n", response);
-
         printf("\n Total received response bytes: %d\n", read);
 
         free(response);
@@ -166,7 +135,7 @@ char* constructRequest(char* url) {
         const char* METHOD;
         char modified_since[256] = "If-Modified-Since: ";
 
-        char* request = (char*)calloc(REQUEST_SIZE + 1, sizeof(char));
+        char* request = (char*)calloc(REQUEST_SIZE, sizeof(char));
         if(request == NULL) {
                 perror("calloc");
                 exit(-1);
@@ -203,13 +172,39 @@ char* constructRequest(char* url) {
 /*********************************/
 /*********************************/
 
+void sendRequest(int* sockfd, char* request) {
+
+        int request_legnth = strlen(request);
+        int bytes_written = 0;
+        int nBytes;
+
+        printf("HTTP request =\n%s\nLEN = %d\n", request, request_legnth);
+
+        while(bytes_written < request_legnth) {
+
+                if((nBytes = write((*sockfd), request, strlen(request))) < 0) {
+                        perror("write");
+                        exit(-1);
+                }
+
+                bytes_written += nBytes;
+        }
+        free(request);
+}
+
+/*********************************/
+/*********************************/
+/*********************************/
+
 //read response from server & count total bytes read.
-int getResponse(char* response, int response_length, int* sockfd) {
+int getResponse(char** response, int response_length, int* sockfd) {
 
         int nBytes;
         int bytes_read = 0;
         char buffer[BUFFER_SIZE];
         memset(&buffer, 0, sizeof(buffer));
+
+        char* temp;
 
         //Reading server response
         while ((nBytes = read((*sockfd), buffer, sizeof(buffer))) > 0) {
@@ -223,15 +218,17 @@ int getResponse(char* response, int response_length, int* sockfd) {
 
                 if(nBytes >= (response_length - bytes_read)) {
 
-                        response = realloc(response, (response_length *= 2));
-                        if(response == NULL) {
+                        temp = (char*)realloc((*response), (response_length *= 2));
+                        if(temp == NULL) {
                                 perror("realloc");
                                 exit(-1);
                         }
+                        (*response) = temp;
 
                 }
-                strncat(response, buffer, nBytes);
+                strncat((*response), buffer, nBytes);
         }
+        printf("response length = %d\n", (int)strlen((*response))); //DEBUG
         return bytes_read;
 }
 
