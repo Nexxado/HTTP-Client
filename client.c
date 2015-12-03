@@ -69,6 +69,28 @@ int main(int argc, char* argv[]) {
 /*************************** CMD Execution Methods ****************************/
 /******************************************************************************/
 
+void sendRequest(int* sockfd, char* request) {
+        printf("Sending Request\n"); //DEBUG
+        int request_legnth = strlen(request);
+        int bytes_written = 0;
+        int nBytes;
+        printf("HTTP request =\n%s\nLEN = %d\n", request, request_legnth);
+
+        while(bytes_written < request_legnth) {
+
+                if((nBytes = write((*sockfd), request, strlen(request))) < 0) {
+                        perror("write");
+                        exit(-1);
+                }
+
+                bytes_written += nBytes;
+                printf("nBytes = %d, bytes_written = %d\n", nBytes, bytes_written); //DEBUG
+        }
+
+        free(request);
+
+}
+
 void executeCMD(char* url) {
 
         int sockfd = 0;
@@ -76,15 +98,16 @@ void executeCMD(char* url) {
 
         char* request = constructRequest(url);
 
+        sendRequest(&sockfd, request);
         //Sending Request
-        printf("HTTP request =\n%s\nLEN = %d\n", request, (int)strlen(request));
-        if(write(sockfd, request, strlen(request)) < 0) {
-                perror("write");
-                exit(-1);
-        }
-        free(request);
+        // printf("HTTP request =\n%s\nLEN = %d\n", request, (int)strlen(request));
+        // if(write(sockfd, request, strlen(request)) < 0) {
+        //         perror("write");
+        //         exit(-1);
+        // }
+        // free(request);
 
-        char* response = (char*)calloc(RESPONSE_SIZE, sizeof(char));
+        char* response = (char*)calloc(RESPONSE_SIZE + 1, sizeof(char));
         if(response == NULL) {
                 perror("calloc");
                 exit(-1);
@@ -143,7 +166,7 @@ char* constructRequest(char* url) {
         const char* METHOD;
         char modified_since[256] = "If-Modified-Since: ";
 
-        char* request = (char*)calloc(REQUEST_SIZE, sizeof(char));
+        char* request = (char*)calloc(REQUEST_SIZE + 1, sizeof(char));
         if(request == NULL) {
                 perror("calloc");
                 exit(-1);
@@ -417,9 +440,12 @@ int verifyPort(char* port_ptr) {
 
 void destroy() {
 
-        free(sTimeInterval);
-        free(sHost);
-        free(sFilePath);
+        if(sTimeInterval != NULL)
+                free(sTimeInterval);
+        if(sHost != NULL)
+                free(sHost);
+        if(sFilePath != NULL)
+                free(sFilePath);
 
 }
 
