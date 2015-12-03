@@ -5,6 +5,7 @@
 #include <netdb.h>
 #include <unistd.h> // for closing socket
 #include <time.h>
+#include <ctype.h>
 
 #define TRUE 1
 #define FALSE 0
@@ -355,6 +356,11 @@ int verifyURL(char* url) {
         int assigned = sscanf(url, URL_FORMAT, protocol, host_path);
 
         char* path_ptr = strchr(host_path, '/');
+
+        //convert protocol to lowercase to support uppercase\mixedcase input
+        int i;
+        for(i = 0; protocol[i] != '\0'; i++)
+                protocol[i] = tolower(protocol[i]);
 
         //check & verify URL format & correct protocol
         if(assigned != 2 || strcmp(protocol, "http"))
