@@ -19,6 +19,7 @@
 #define URL_FORMAT "%4s://%s" //format = Protocol://(Host[:port]/Filepath)
 #define NUM_OF_CMD_ARGS 2 //not including flags & options
 #define DEFAULT_PORT 80
+#define MAX_PORT 65535
 
 #define BUFFER_SIZE 512
 #define REQUEST_SIZE 1024
@@ -96,13 +97,14 @@ void parseArguments(int argc, char** argv) {
                 sTimeInterval = getTimeInterval(argv[sDelayIndex + 1]);
                 if(sTimeInterval == NULL) {
                         printf(PRINT_WRONG_INPUT);
+                        destroy();
                         exit(-1);
                 }
         }
 
         if(verifyURL(argv[sURLIndex])) {
                 printf(PRINT_WRONG_INPUT);
-                free(sTimeInterval);
+                destroy();
                 exit(-1);
         }
 }
@@ -122,6 +124,7 @@ void executeCMD(char* url) {
         char* response = (char*)calloc(RESPONSE_SIZE, sizeof(char));
         if(response == NULL) {
                 perror("calloc");
+                destroy();
                 exit(-1);
         }
 
@@ -143,6 +146,7 @@ void establishConnection(int* sockfd) {
 
         if(((*sockfd) = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
                 perror("socket");
+                destroy();
                 exit(-1);
         }
         struct sockaddr_in server_addr;
@@ -163,6 +167,7 @@ void establishConnection(int* sockfd) {
 
         if(connect((*sockfd), (struct sockaddr*) &server_addr, sizeof(server_addr)) < 0) {
                 perror("connect");
+                destroy();
                 exit(-1);
         }
 }
@@ -176,19 +181,25 @@ char* constructRequest(char* url) {
 
         const char* METHOD;
         char modified_since[256] = "If-Modified-Since: ";
+        char port[10];
 
         char* request = (char*)calloc(REQUEST_SIZE, sizeof(char));
         if(request == NULL) {
                 perror("calloc");
+                destroy();
                 exit(-1);
         }
 
+        //get Port
+        sprintf(port, ":%d", sPort);
 
+        //Determine method
         if(sHeaderFlag)
                 METHOD = "HEAD";
         else
                 METHOD = "GET";
 
+        //Construct If-Modified-Since time format
         if(sDelayFlag) {
 
                 time_t now;
@@ -196,15 +207,23 @@ char* constructRequest(char* url) {
                 now = time(NULL);
                 // sTimeInterval = {days, hours, mins}
                 now = now - (sTimeInterval[0] * 24 * 3600 + sTimeInterval[1] * 3600 + sTimeInterval[2] * 60);
-                strftime(timebuf, sizeof(timebuf), RFC1123FMT, gmtime(&now)); //timebuf holds the correct format of the time
+                //timebuf will hold the correct format of the time
+                if(!strftime(timebuf, sizeof(timebuf), RFC1123FMT, gmtime(&now))) {
+                        perror("strftime");
+                        free(request);
+                        destroy();
+                        exit(-1);
+                }
                 strcat(modified_since, timebuf);
                 strcat(modified_since, "\r\n");
         }
 
-        sprintf(request, "%s /%s HTTP/1.0\r\nHost: %s\r\n%s\r\n",
+        //Construct the request
+        sprintf(request, "%s /%s HTTP/1.0\r\nHost: %s%s\r\n%s\r\n",
                 METHOD,
                 sFilePath != NULL ? sFilePath : "",
                 sHost,
+                sPort != DEFAULT_PORT ? port : "",
                 sDelayFlag ? modified_since : "");
 
         return request;
@@ -227,6 +246,7 @@ void sendRequest(int* sockfd, char* request) {
 
                 if((nBytes = write((*sockfd), request, strlen(request))) < 0) {
                         perror("write");
+                        destroy();
                         exit(-1);
                 }
 
@@ -254,16 +274,19 @@ int getResponse(char** response, int response_length, int* sockfd) {
 
                 if(nBytes < 0) {
                         perror("read");
+                        destroy();
                         exit(-1);
                 }
                 //count total bytes
                 bytes_read += nBytes;
 
+                //if not enough space in Response, allocate more memory
                 if(nBytes >= (response_length - bytes_read)) {
 
                         temp = (char*)realloc((*response), (response_length *= 2));
                         if(temp == NULL) {
                                 perror("realloc");
+                                destroy();
                                 exit(-1);
                         }
                         (*response) = temp;
@@ -329,6 +352,7 @@ int* getTimeInterval(char* interval_string) {
                 int* time_interval = (int*)calloc(3, sizeof(int));
                 if(time_interval == NULL) {
                         perror("calloc");
+                        destroy();
                         exit(-1);
                 }
 
@@ -366,6 +390,7 @@ int verifyURL(char* url) {
                 return -1;
 
         //check & verify port
+        //Determine length of Host string.
         char* port_ptr;
         int hostLength = 0;
         if((port_ptr = strchr(host_path, ':')) != NULL) {
@@ -417,14 +442,15 @@ int verifyPort(char* port_ptr) {
         for(i = 0; port_ptr[i] != '/' && port_ptr[i] != '\0'; i++) ;  //find end of port
 
         int port_length = i-1;
-        //port is a maximum of 4 digits
-        if(port_length > 4)
+        //port is a maximum of 5 digits (max = 65535)
+        if(port_length <= 0 || port_length > 5)
                 return -1;
 
 
         char* port_string = (char*)calloc(port_length + 1, sizeof(char));
         if(port_string == NULL) {
                 perror("calloc");
+                destroy();
                 exit(-1);
         }
 
@@ -433,10 +459,18 @@ int verifyPort(char* port_ptr) {
         //check port_string containts only digits
         int assigned = strspn(port_string, "0123456789");
 
-        if(assigned != port_length)
+        if(assigned != port_length) {
+                free(port_string);
                 return -1;
+        }
 
         int port = atoi(port_string);
+
+        if(port > MAX_PORT) {
+                free(port_string);
+                return -1;
+        }
+
         free(port_string);
         return port;
 }
