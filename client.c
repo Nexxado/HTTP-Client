@@ -208,12 +208,7 @@ char* constructRequest(char* url) {
                 // sTimeInterval = {days, hours, mins}
                 now = now - (sTimeInterval[0] * 24 * 3600 + sTimeInterval[1] * 3600 + sTimeInterval[2] * 60);
                 //timebuf will hold the correct format of the time
-                if(!strftime(timebuf, sizeof(timebuf), RFC1123FMT, gmtime(&now))) {
-                        perror("strftime");
-                        free(request);
-                        destroy();
-                        exit(-1);
-                }
+                strftime(timebuf, sizeof(timebuf), RFC1123FMT, gmtime(&now));
                 strcat(modified_since, timebuf);
                 strcat(modified_since, "\r\n");
         }
