@@ -183,7 +183,7 @@ char* constructRequest(char* url) {
         char modified_since[256] = "If-Modified-Since: ";
         char port[10];
 
-        char* request = (char*)calloc(REQUEST_SIZE, sizeof(char));
+        char* request = (char*)calloc(REQUEST_SIZE + strlen(url), sizeof(char));
         if(request == NULL) {
                 perror("calloc");
                 destroy();
@@ -214,11 +214,16 @@ char* constructRequest(char* url) {
         }
 
         //Construct the request
-        sprintf(request, "%s /%s HTTP/1.0\r\nHost: %s%s\r\n%s\r\n",
+        // sprintf(request, "%s /%s HTTP/1.0\r\nHost: %s%s\r\n%s\r\n",
+        //         METHOD,
+        //         sFilePath != NULL ? sFilePath : "",
+        //         sHost,
+        //         sPort != DEFAULT_PORT ? port : "",
+        //         sDelayFlag ? modified_since : "");
+
+        sprintf(request, "%s %s HTTP/1.0\r\n%s\r\n",
                 METHOD,
-                sFilePath != NULL ? sFilePath : "",
-                sHost,
-                sPort != DEFAULT_PORT ? port : "",
+                url,
                 sDelayFlag ? modified_since : "");
 
         return request;
