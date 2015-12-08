@@ -312,11 +312,17 @@ int checkFlags(int argc, char** argv) {
         for(i = 1; i < argc; i++) {
 
                 if(!strcmp(argv[i], HEADERS_FLAG)) {
+                        if(sHeaderFlag)
+                                return -1;
+
                         sHeaderFlag = TRUE;
                         sHeadersIndex = i;
                         num_of_flags += 1;
 
                 } else if(!strcmp(argv[i], DELAY_FLAG)) {
+                        if(sDelayFlag)
+                                return -1;
+
                         sDelayFlag = TRUE;
                         sDelayIndex = i;
                         num_of_flags += 2;
