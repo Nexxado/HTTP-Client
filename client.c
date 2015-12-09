@@ -214,13 +214,16 @@ char* constructRequest(char* url) {
         }
 
         //Construct the request
-        // sprintf(request, "%s /%s HTTP/1.0\r\nHost: %s%s\r\n%s\r\n",
+
+        //HTTP 1.1 version
+        // sprintf(request, "%s /%s HTTP/1.1\r\nHost: %s%s\r\n%s\r\n",
         //         METHOD,
         //         sFilePath != NULL ? sFilePath : "",
         //         sHost,
         //         sPort != DEFAULT_PORT ? port : "",
         //         sDelayFlag ? modified_since : "");
 
+        //HTTP 1.0 version
         sprintf(request, "%s %s HTTP/1.0\r\n%s\r\n",
                 METHOD,
                 url,
