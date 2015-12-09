@@ -15,8 +15,6 @@
 #define PRINT_WRONG_INPUT "Wrong input\n"
 #define HEADERS_FLAG "-h"
 #define DELAY_FLAG "-d"
-#define TIME_INTERVAL_FORMAT "%d:%d:%d"
-#define URL_FORMAT "%4s://%s" //format = Protocol://(Host[:port]/Filepath)
 #define NUM_OF_CMD_ARGS 2 //not including flags & options
 #define DEFAULT_PORT 80
 #define MAX_PORT 65535
@@ -357,10 +355,14 @@ int* getTimeInterval(char* interval_string) {
                 return NULL;
 
         int days, hours, mins;
-        int assigned = sscanf(interval_string, TIME_INTERVAL_FORMAT, &days, &hours, &mins);
+        //String to check there is no string after format
+        char test[strlen(interval_string) + 1];
+        memset(test, 0, strlen(test));
+
+        int assigned = sscanf(interval_string, "%d:%d:%d%s", &days, &hours, &mins, test);
 
         //if interval_string matches format return int array with days, hours, mins.
-        if(assigned == 3) {
+        if(assigned == 3 ) {
 
                 int* time_interval = (int*)calloc(3, sizeof(int));
                 if(time_interval == NULL) {
@@ -384,12 +386,14 @@ int* getTimeInterval(char* interval_string) {
 /*********************************/
 
 //Verify that passed URL argument matches format
+//format = Protocol://(Host[:port]/Filepath)
 int verifyURL(char* url) {
 
         char protocol[4];
         char host_path[strlen(url)-4];
+
         //seperate protocol & host+path
-        int assigned = sscanf(url, URL_FORMAT, protocol, host_path);
+        int assigned = sscanf(url, "%4s://%s", protocol, host_path);
 
         char* path_ptr = strchr(host_path, '/');
 
